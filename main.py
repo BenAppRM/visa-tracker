@@ -19,13 +19,13 @@ async def run():
             page = await browser.new_page()
             await page.goto(URL, timeout=60000)
 
-            await page.click("text=Study Visa")
-            await page.wait_for_selector(".consularStudyVisaCD", timeout=5000)
+            # مستقیماً همه labelها رو بخون، دنبال اونایی که (CD) دارن
+            labels = await page.locator("label").all_text_contents()
+            study_labels = [label.strip() for label in labels if "(CD)" in label]
 
-            labels = await page.locator(".consularStudyVisaCD label").all_text_contents()
-            if labels:
-                message = "📘 Study Visa Options Found:\n\n" + "\n".join(labels)
-                print("🎯 Extracted options:", labels)
+            if study_labels:
+                message = "📘 Study Visa Options Found:\n\n" + "\n".join(study_labels)
+                print("🎯 Extracted options:", study_labels)
             else:
                 message = "⚠️ No Study Visa options found."
 
