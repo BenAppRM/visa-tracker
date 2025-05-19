@@ -1,32 +1,27 @@
-import requests
 import os
+import requests
 import asyncio
 from playwright.async_api import async_playwright
 
-print("✅ visa-tracker script started (Playwright)")
+print("✅ visa-tracker script started (Browserless.io)")
 
 BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
+BROWSERLESS_TOKEN = os.environ.get("BROWSERLESS_TOKEN")
 URL = "https://it-ir-appointment.visametric.com/en"
 
 async def run():
     message = ""
-
     try:
+        ws_endpoint = f"wss://chrome.browserless.io/playwright?token={BROWSERLESS_TOKEN}"
+
         async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=False)  # اجرای کامل مرورگر
+            browser = await p.chromium.connect(ws_endpoint)
             page = await browser.new_page()
 
-            # تنظیمات طبیعی‌تر
-            await page.set_user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36")
-            await page.set_viewport_size({"width": 1280, "height": 800})
-
             await page.goto(URL, timeout=60000)
+            await asyncio.sleep(7)  # صبر برای رد شدن از human check
 
-            # صبر اضافی برای لود جاوااسکریپت
-            await asyncio.sleep(5)
-
-            # کلیک دقیق روی دکمه Study Visa
             await page.click("button[data-bs-target='#collapseSix']")
             await page.wait_for_selector(".consularStudyVisaCD", timeout=10000)
 
