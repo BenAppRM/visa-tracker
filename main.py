@@ -31,7 +31,7 @@ async def run():
 
     try:
         playwright = await async_playwright().start()
-        browser = await playwright.connect(f"wss://chrome.browserless.io/playwright?token={BROWSERLESS_TOKEN}")
+        browser = await playwright.chromium.connect(f"wss://chrome.browserless.io/playwright?token={BROWSERLESS_TOKEN}")
         context = await browser.new_context()
         page = await context.new_page()
 
