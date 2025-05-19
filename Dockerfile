@@ -1,5 +1,4 @@
-# Dockerfile for visa-tracker with Playwright
-FROM mcr.microsoft.com/playwright/python:v1.43.1
+FROM mcr.microsoft.com/playwright/python:latest
 
 WORKDIR /app
 
