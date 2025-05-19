@@ -1,6 +1,8 @@
 import requests
 from bs4 import BeautifulSoup
 
+print("✅ visa-tracker script started")
+
 # اطلاعات ربات و چت تلگرام
 TELEGRAM_TOKEN = "8054642676:AAFsHDz1UKBfwBDKN5wfXU_Xys6Vhj4q3ro"
 CHAT_ID = "94785206"
