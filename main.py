@@ -31,7 +31,7 @@ async def run():
 
     try:
         playwright = await async_playwright().start()
-        browser = await playwright.chromium.connect_over_cdp(f"wss://chrome.browserless.io/playwright?token={BROWSERLESS_TOKEN}")
+        browser = await playwright.connect(f"wss://chrome.browserless.io/playwright?token={BROWSERLESS_TOKEN}")
         context = await browser.new_context()
         page = await context.new_page()
 
@@ -52,7 +52,7 @@ async def run():
 
     except Exception as e:
         print(f"❌ Unexpected error: {e}")
-        send_telegram_message("🚫 Script crashed: connection or browser error.")
+        send_telegram_message(f"🚫 Script crashed: {e}")
 
 # ==== ▶ اجرا ====
 if __name__ == "__main__":
