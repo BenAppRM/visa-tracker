@@ -14,9 +14,17 @@ async def run():
 
     try:
         async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)
+            browser = await p.chromium.launch(headless=False)  # اجرای کامل مرورگر
             page = await browser.new_page()
+
+            # تنظیمات طبیعی‌تر
+            await page.set_user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36")
+            await page.set_viewport_size({"width": 1280, "height": 800})
+
             await page.goto(URL, timeout=60000)
+
+            # صبر اضافی برای لود جاوااسکریپت
+            await asyncio.sleep(5)
 
             # کلیک دقیق روی دکمه Study Visa
             await page.click("button[data-bs-target='#collapseSix']")
