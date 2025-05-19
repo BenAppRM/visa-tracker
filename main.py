@@ -1,59 +1,60 @@
-import asyncio
-from playwright.async_api import async_playwright
-import requests
+# main.py
 import os
+import requests
+from bs4 import BeautifulSoup
 
 # ==== 🟩 پیکربندی ====
-TELEGRAM_TOKEN = "8083030250:AAGrnBOMQ57l1HmWrGttl2jEy_ZpxUaLQX0"
-TELEGRAM_CHAT_ID = "94785206"
-BROWSERLESS_TOKEN = "2SLAotEtd7capyP5dbbd22885ef4f314250f80a78ff2354cf"
+SCRAPERAPI_KEY    = "61162cf2113cd4dffffa65f0ac310aad"
+VISAMETRIC_URL    = "https://it-ir-appointment.visametric.com/en"
+TELEGRAM_TOKEN    = os.environ.get("TELEGRAM_BOT_TOKEN")
+TELEGRAM_CHAT_ID  = os.environ.get("TELEGRAM_CHAT_ID")
 
-VISAMETRIC_URL = "https://it-ir-appointment.visametric.com/en"
-CHECK_SELECTOR = "button:has-text('Study Visa')"  # یا هر دکمه‌ای که باید کلیک بشه
+# ==== 🟦 توابع کمکی ====
+def fetch_rendered_page(url: str) -> str:
+    params = {
+        "api_key": SCRAPERAPI_KEY,
+        "url": url,
+        "render": "true",       # رندر کامل JavaScript
+        "country_code": "de",   # اختیاری: آلمان (نزدیک به سرور ایتالیا)
+    }
+    resp = requests.get("http://api.scraperapi.com", params=params, timeout=60)
+    resp.raise_for_status()
+    return resp.text
 
-# ==== 🟦 تلگرام ====
-def send_telegram_message(message):
+def extract_study_options(html: str) -> list[str]:
+    soup = BeautifulSoup(html, "html.parser")
+    container = soup.find(id="consularStudyVisaCD")
+    if not container:
+        return []
+    labels = container.find_all("label")
+    return [lbl.get_text(strip=True) for lbl in labels if lbl.get_text(strip=True)]
+
+def send_telegram(message: str):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     payload = {
         "chat_id": TELEGRAM_CHAT_ID,
         "text": message,
-        "parse_mode": "HTML"
+        "parse_mode": "HTML",
     }
+    r = requests.post(url, json=payload, timeout=10)
+    if not r.ok:
+        print("⚠️ Telegram error:", r.text)
+
+# ==== ▶ اجرای اصلی ====
+def main():
     try:
-        response = requests.post(url, json=payload)
-        print("✅ Telegram message sent successfully.")
+        html = fetch_rendered_page(VISAMETRIC_URL)
+        options = extract_study_options(html)
+        if options:
+            text = "<b>Study Visa Options Found:</b>\n\n" + "\n".join(options)
+        else:
+            text = "⚠️ No Study Visa options found."
+        send_telegram(text)
+        print("✅ Done:", options or "none")
     except Exception as e:
-        print(f"⚠️ Telegram error: {e}")
+        err = f"❌ Error: {e}"
+        print(err)
+        send_telegram(err)
 
-# ==== 🟨 اجرای اصلی ====
-async def run():
-    print("✅ visa-tracker script started (Browserless.io)")
-
-    try:
-        playwright = await async_playwright().start()
-        browser = await playwright.chromium.connect(f"wss://chrome.browserless.io/playwright?token={BROWSERLESS_TOKEN}")
-        context = await browser.new_context()
-        page = await context.new_page()
-
-        try:
-            await page.goto(VISAMETRIC_URL, timeout=60000)
-            await page.wait_for_selector(CHECK_SELECTOR, timeout=60000)
-            await page.click(CHECK_SELECTOR)
-            await page.screenshot(path="page.png", full_page=True)
-            await page.wait_for_timeout(3000)
-            send_telegram_message("🟢 Study Visa گزینه‌ای پیدا شد و کلیک شد!")
-        except Exception as e:
-            await page.screenshot(path="error.png", full_page=True)
-            print(f"❌ Error fetching site:\n{e}")
-            send_telegram_message("⚠️ No Study Visa options found or site blocked.")
-        finally:
-            await browser.close()
-            await playwright.stop()
-
-    except Exception as e:
-        print(f"❌ Unexpected error: {e}")
-        send_telegram_message(f"🚫 Script crashed: {e}")
-
-# ==== ▶ اجرا ====
 if __name__ == "__main__":
-    asyncio.run(run())
+    main()
