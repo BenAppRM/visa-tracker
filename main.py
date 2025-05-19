@@ -1,58 +1,59 @@
-import os
-import requests
 import asyncio
 from playwright.async_api import async_playwright
+import requests
+import os
 
-print("✅ visa-tracker script started (Browserless.io)")
+# ==== 🟩 پیکربندی ====
+TELEGRAM_TOKEN = "8083030250:AAGrnBOMQ57l1HmWrGttl2jEy_ZpxUaLQX0"
+TELEGRAM_CHAT_ID = "94785206"
+BROWSERLESS_TOKEN = "2SLAotEtd7capyP5dbbd22885ef4f314250f80a78ff2354cf"
 
-BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
-CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
-BROWSERLESS_TOKEN = os.environ.get("BROWSERLESS_TOKEN")
-URL = "https://it-ir-appointment.visametric.com/en"
+VISAMETRIC_URL = "https://it-ir-appointment.visametric.com/en"
+CHECK_SELECTOR = "button:has-text('Study Visa')"  # یا هر دکمه‌ای که باید کلیک بشه
 
+# ==== 🟦 تلگرام ====
+def send_telegram_message(message):
+    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+    payload = {
+        "chat_id": TELEGRAM_CHAT_ID,
+        "text": message,
+        "parse_mode": "HTML"
+    }
+    try:
+        response = requests.post(url, json=payload)
+        print("✅ Telegram message sent successfully.")
+    except Exception as e:
+        print(f"⚠️ Telegram error: {e}")
+
+# ==== 🟨 اجرای اصلی ====
 async def run():
-    message = ""
+    print("✅ visa-tracker script started (Browserless.io)")
+
     try:
-        ws_endpoint = f"wss://chrome.browserless.io/playwright?token={BROWSERLESS_TOKEN}"
+        playwright = await async_playwright().start()
+        browser = await playwright.chromium.connect_over_cdp(f"wss://chrome.browserless.io/playwright?token={BROWSERLESS_TOKEN}")
+        context = await browser.new_context()
+        page = await context.new_page()
 
-        async with async_playwright() as p:
-            browser = await p.chromium.connect(ws_endpoint)
-            page = await browser.new_page()
-
-            await page.goto(URL, timeout=60000)
-            await asyncio.sleep(7)  # صبر برای رد شدن از human check
-
-            await page.click("button[data-bs-target='#collapseSix']")
-            await page.wait_for_selector(".consularStudyVisaCD", timeout=10000)
-
-            labels = await page.locator(".consularStudyVisaCD label").all_text_contents()
-            study_labels = [label.strip() for label in labels if label.strip()]
-
-            if study_labels:
-                message = "📘 Study Visa Options Found:\n\n" + "\n".join(study_labels)
-                print("🎯 Extracted options:", study_labels)
-            else:
-                message = "⚠️ No Study Visa options found after clicking."
-
+        try:
+            await page.goto(VISAMETRIC_URL, timeout=60000)
+            await page.wait_for_selector(CHECK_SELECTOR, timeout=60000)
+            await page.click(CHECK_SELECTOR)
+            await page.screenshot(path="page.png", full_page=True)
+            await page.wait_for_timeout(3000)
+            send_telegram_message("🟢 Study Visa گزینه‌ای پیدا شد و کلیک شد!")
+        except Exception as e:
+            await page.screenshot(path="error.png", full_page=True)
+            print(f"❌ Error fetching site:\n{e}")
+            send_telegram_message("⚠️ No Study Visa options found or site blocked.")
+        finally:
             await browser.close()
+            await playwright.stop()
 
     except Exception as e:
-        message = f"❌ Error fetching site:\n{str(e)}"
-        print(message)
+        print(f"❌ Unexpected error: {e}")
+        send_telegram_message("🚫 Script crashed: connection or browser error.")
 
-    # ارسال به تلگرام
-    try:
-        telegram_url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-        payload = {"chat_id": CHAT_ID, "text": message}
-        tg = requests.post(telegram_url, data=payload, timeout=10)
-
-        if tg.ok:
-            print("✅ Telegram message sent successfully.")
-        else:
-            print("⚠️ Telegram error:", tg.text)
-
-    except Exception as e:
-        print("❌ Telegram send failed:", str(e))
-
+# ==== ▶ اجرا ====
 if __name__ == "__main__":
     asyncio.run(run())
